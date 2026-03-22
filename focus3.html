@@ -372,7 +372,26 @@ main{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:20px 14p
 .sec-title{font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:2.5px;color:var(--muted);margin-bottom:14px;}
 #stats-view,#objectives-view,#history-view{display:none;}
 
-/* PLAN TOMORROW */
+/* CHALLENGE CARD */
+.challenge-card{background:linear-gradient(135deg,rgba(255,95,31,.1),rgba(255,214,10,.05));border:1px solid rgba(255,95,31,.3);border-radius:var(--radius);padding:14px 18px;margin-bottom:18px;display:flex;align-items:center;gap:14px;animation:fadeUp .5s ease both .02s;}
+.challenge-left{flex:1;}
+.challenge-tag{font-size:9px;font-weight:700;letter-spacing:2px;color:var(--p1);margin-bottom:5px;font-family:'JetBrains Mono',monospace;}
+.challenge-txt{font-size:14px;font-weight:600;line-height:1.4;}
+.challenge-done-btn{background:var(--p1);color:#fff;border:none;border-radius:var(--radius-sm);padding:9px 16px;font-family:'Outfit',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;white-space:nowrap;flex-shrink:0;}
+.challenge-done-btn:hover{opacity:.85;}
+.challenge-done-btn.done{background:var(--p2);color:#000;}
+.challenge-card.done-state{border-color:rgba(0,212,200,.3);background:linear-gradient(135deg,rgba(0,212,200,.08),rgba(0,212,200,.03));}
+
+/* XP GRAPH */
+.xp-graph-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-top:14px;}
+.xp-graph-title{font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:2px;color:var(--p3);margin-bottom:14px;}
+.xp-graph-bars{display:flex;gap:8px;}
+.xg-pillar{flex:1;display:flex;flex-direction:column;gap:6px;}
+.xg-pillar-name{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-family:'JetBrains Mono',monospace;}
+.xg-bar-row{display:flex;gap:3px;align-items:flex-end;height:60px;}
+.xg-col{display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;}
+.xg-bar{width:100%;border-radius:3px 3px 0 0;min-height:2px;transition:height .5s ease;}
+.xg-lbl{font-size:8px;color:var(--muted);font-family:'JetBrains Mono',monospace;}
 .plan-tmr-btn{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 22px;color:var(--muted2);font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;}
 .plan-tmr-btn:hover{border-color:var(--p2);color:var(--p2);}
 .plan-tmr-btn.open{border-color:var(--p2);color:var(--p2);background:var(--p2g);}
@@ -418,6 +437,13 @@ main{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:20px 14p
   <!-- TODAY -->
   <div id="today-view">
     <div class="quote-card"><div class="q-emoji">💬</div><div class="q-body"><div class="q-main" id="quoteMain"></div><div class="q-author" id="quoteAuthor"></div></div></div>
+    <div class="challenge-card" id="challengeCard">
+      <div class="challenge-left">
+        <div class="challenge-tag">💪 DÉFI DU JOUR</div>
+        <div class="challenge-txt" id="challengeTxt"></div>
+      </div>
+      <button class="challenge-done-btn" id="challengeBtn" onclick="toggleChallenge()">Relever</button>
+    </div>
     <div class="done-banner" id="doneBanner"><div class="done-title">🔥 Toutes les tâches principales faites !</div><div class="done-sub">Journée complète. Respect.</div></div>
     <div class="date-row">
       <div class="date-num" id="dateNum"></div>
@@ -474,6 +500,10 @@ main{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:20px 14p
     <div class="rank-legend">
       <div class="rl-title">Tableau des rangs</div>
       <div class="rl-grid" id="rankLegend"></div>
+    </div>
+    <div class="xp-graph-card">
+      <div class="xp-graph-title">📈 Évolution XP (7 derniers jours)</div>
+      <div class="xp-graph-bars" id="xpGraphBars"></div>
     </div>
   </div>
 
@@ -882,6 +912,7 @@ function renderRankView(){
     const mainXp=RANK_XP[Math.min(i,RANK_XP.length-1)][0];
     leg.innerHTML+=`<div class="rl-item"><div class="rl-letter" style="color:${col}">${r.key}</div><div class="rl-xp">${xpTxt}</div><div class="rl-bonus">+${mainXp} XP/tâche</div></div>`;
   });
+  renderXPGraph();
 }
 
 function toggleQuest(pid,rank,idx){
@@ -901,7 +932,80 @@ function toggleQuest(pid,rank,idx){
   renderPillars();
 }
 
-// ===== TOMORROW PLANNING =====
+// ===== DAILY CHALLENGE =====
+const CHALLENGES=[
+  // Physique
+  {t:'Fais 20 pompes maintenant, pas demain, maintenant.',p:'⚡'},
+  {t:'30 jonglages avec n\'importe quelle balle. Tu peux le faire en 5 min.',p:'⚡'},
+  {t:'Fais une séance de 20 min de technique foot ce soir.',p:'⚡'},
+  {t:'10 minutes d\'étirements avant de dormir ce soir.',p:'⚡'},
+  {t:'Cours pendant 10 minutes non-stop aujourd\'hui.',p:'⚡'},
+  {t:'Fais 3 séries de 10 pompes avec 1 min de repos.',p:'⚡'},
+  // Dev Perso
+  {t:'Ouvre Roblox Studio et crée quelque chose de nouveau aujourd\'hui.',p:'🧠'},
+  {t:'Regarde 1 vidéo YouTube sur le code Lua ou Python.',p:'🧠'},
+  {t:'Récite une sourate que tu connais à voix haute.',p:'🧠'},
+  {t:'Passe 20 min à coder sans regarder ton téléphone.',p:'🧠'},
+  {t:'Apprends 5 nouveaux mots en arabe coranique.',p:'🧠'},
+  {t:'Écris le plan de ta prochaine vidéo YouTube.',p:'🧠'},
+  // Cours
+  {t:'Relis tes cours de la semaine en 15 minutes ce soir.',p:'📚'},
+  {t:'Fais une fiche de révision propre sur un sujet du moment.',p:'📚'},
+  {t:'Finit tous tes devoirs avant 20h ce soir.',p:'📚'},
+  {t:'Pose une question à ton prof que t\'as pas osé poser.',p:'📚'},
+  {t:'Révise le théorème de Thalès en 10 minutes.',p:'📚'},
+];
+function getChallenge(){return CHALLENGES[new Date().getDate()%CHALLENGES.length];}
+function initChallenge(){
+  const ch=getChallenge();
+  document.getElementById('challengeTxt').textContent=`${ch.p} ${ch.t}`;
+  const saved=ls('f3challenge');
+  const today=todayKey();
+  if(saved&&saved.date===today&&saved.done){
+    document.getElementById('challengeBtn').textContent='✓ Relevé !';
+    document.getElementById('challengeBtn').classList.add('done');
+    document.getElementById('challengeCard').classList.add('done-state');
+  }
+}
+function toggleChallenge(){
+  const today=todayKey();const saved=ls('f3challenge');
+  const alreadyDone=saved&&saved.date===today&&saved.done;
+  if(alreadyDone){ss('f3challenge',{date:today,done:false});document.getElementById('challengeBtn').textContent='Relever';document.getElementById('challengeBtn').classList.remove('done');document.getElementById('challengeCard').classList.remove('done-state');}
+  else{ss('f3challenge',{date:today,done:true});document.getElementById('challengeBtn').textContent='✓ Relevé !';document.getElementById('challengeBtn').classList.add('done');document.getElementById('challengeCard').classList.add('done-state');showXPToast('+5 XP Défi 💪');}
+}
+
+// ===== XP GRAPH =====
+function renderXPGraph(){
+  const rd=getRankData();const g=document.getElementById('xpGraphBars');g.innerHTML='';
+  // Show XP history per pillar — we track daily XP gains via task completions
+  // We'll show current XP per pillar as a snapshot bar chart
+  const colors=['var(--p1)','var(--p2)','var(--p3)'];
+  const d=ls('f3d')||{};
+  const today=new Date();
+  PILLARS.forEach((pl,idx)=>{
+    const col=colors[idx];
+    let barsHTML='';
+    for(let i=6;i>=0;i--){
+      const dt=new Date(today);dt.setDate(today.getDate()-i);
+      const k=dt.toISOString().split('T')[0];
+      const day=d[k];let xpDay=0;
+      if(day){
+        const rIdx=getRankIdx(rd[pl.id].rank);
+        const rewards=RANK_XP[Math.min(rIdx,RANK_XP.length-1)];
+        if(day[pl.id]?.main?.done)xpDay+=rewards[0];
+        day[pl.id]?.secondary?.forEach(t=>{if(t.done)xpDay+=rewards[1];});
+      }
+      const maxXP=15;const pct=Math.min(Math.round((xpDay/maxXP)*100),100);
+      const lbl=i===0?'Auj':DAYS[dt.getDay()].slice(0,1);
+      barsHTML+=`<div class="xg-col"><div class="xg-bar" style="height:${Math.max(pct,3)}%;background:${col};opacity:${i===0?1:.6}"></div><div class="xg-lbl">${lbl}</div></div>`;
+    }
+    const rp=rd[pl.id];
+    g.innerHTML+=`<div class="xg-pillar">
+      <div class="xg-pillar-name" style="color:${col}">${pl.icon} ${pl.name} · ${rp.rank} · ${rp.xp}/100 XP</div>
+      <div class="xg-bar-row">${barsHTML}</div>
+    </div>`;
+  });
+}
 const tomorrowKey=()=>{const d=new Date();d.setDate(d.getDate()+1);return d.toISOString().split('T')[0];}
 function getTomorrowData(){
   const data=ls('f3d')||{};const k=tomorrowKey();
@@ -1027,14 +1131,43 @@ function renderPastReviews(){
 }
 
 // ===== HISTORY =====
-function renderHistory(){const d=ls('f3d')||{};const g=document.getElementById('histGrid');g.innerHTML='';const today=todayKey();const keys=Object.keys(d).filter(k=>k!==today).sort((a,b)=>b.localeCompare(a));if(keys.length===0){g.innerHTML=`<div class="empty-msg"><div class="e-ico">📅</div>Aucun historique.<br>Reviens demain !</div>`;return;}keys.forEach(k=>{const day=d[k];const dt=new Date(k+'T12:00:00');const lbl=`${DAYS[dt.getDay()]} ${dt.getDate()} ${MONTHS[dt.getMonth()]} ${dt.getFullYear()}`;let td=0,tt=0;PILLARS.forEach(p=>{const pd=day[p.id];if(!pd)return;if(pd.main){tt++;if(pd.main.done)td++;}pd.secondary.forEach(t=>{tt++;if(t.done)td++;});});let pH='';PILLARS.forEach(p=>{const pd=day[p.id];if(!pd)return;const tasks=[];if(pd.main)tasks.push({text:pd.main.text,done:pd.main.done,main:true});pd.secondary.forEach(t=>tasks.push({text:t.text,done:t.done,main:false}));if(!tasks.length)return;pH+=`<div class="hp"><div class="hp-name">${PILLARS.find(pl=>pl.id===p.id).icon} ${p.name}</div>${tasks.map(t=>`<div class="ht ${t.done?'done':''} ${t.main?'main-h':''}">${escH(t.text)}</div>`).join('')}</div>`;});const c=document.createElement('div');c.className='hc';c.innerHTML=`<div class="hc-head" onclick="this.parentElement.classList.toggle('open')"><span class="hc-date">${lbl}</span><span class="hc-score">${td}/${tt} ✓</span><span class="hc-chev">▼</span></div><div class="hc-body">${pH}</div>`;g.appendChild(c);});}
+function renderHistory(){
+  const d=ls('f3d')||{};const g=document.getElementById('histGrid');g.innerHTML='';
+  const today=todayKey();const tmr=tomorrowKey();
+  // Exclude today AND tomorrow (planned) AND any future date
+  const keys=Object.keys(d).filter(k=>k<today).sort((a,b)=>b.localeCompare(a));
+  if(keys.length===0){g.innerHTML=`<div class="empty-msg"><div class="e-ico">📅</div>Aucun historique.<br>Reviens demain !</div>`;return;}
+  keys.forEach(k=>{
+    const day=d[k];const dt=new Date(k+'T12:00:00');
+    const lbl=`${DAYS[dt.getDay()]} ${dt.getDate()} ${MONTHS[dt.getMonth()]} ${dt.getFullYear()}`;
+    let td=0,tt=0;
+    PILLARS.forEach(p=>{const pd=day[p.id];if(!pd)return;if(pd.main){tt++;if(pd.main.done)td++;}pd.secondary.forEach(t=>{tt++;if(t.done)td++;});});
+    let pH='';
+    PILLARS.forEach(p=>{
+      const pd=day[p.id];if(!pd)return;
+      const tasks=[];
+      if(pd.main)tasks.push({text:pd.main.text,done:pd.main.done,main:true});
+      pd.secondary.forEach(t=>tasks.push({text:t.text,done:t.done,main:false}));
+      if(!tasks.length)return;
+      pH+=`<div class="hp"><div class="hp-name">${PILLARS.find(pl=>pl.id===p.id).icon} ${p.name}</div>${tasks.map(t=>`<div class="ht ${t.done?'done':''} ${t.main?'main-h':''}">${escH(t.text)}</div>`).join('')}</div>`;
+    });
+    const perfect=PILLARS.every(p=>day[p.id]?.main?.done);
+    const c=document.createElement('div');c.className='hc';
+    c.innerHTML=`<div class="hc-head" onclick="this.parentElement.classList.toggle('open')">
+      <span class="hc-date">${lbl}${perfect?' 🔥':''}</span>
+      <span class="hc-score">${td}/${tt} ✓</span>
+      <span class="hc-chev">▼</span>
+    </div><div class="hc-body">${pH}</div>`;
+    g.appendChild(c);
+  });
+}
 
 // ===== VIEW SWITCH =====
 const VIEWS=['today','rank','stats','review','history'];
 function sv(view){VIEWS.forEach(v=>{const el=document.getElementById(v+'-view');if(el)el.style.display='none';});const el=document.getElementById(view+'-view');if(el)el.style.display='block';document.querySelectorAll('.nav-btn').forEach((b,i)=>b.classList.toggle('active',VIEWS[i]===view));if(view==='rank')renderRankView();if(view==='stats')renderStats();if(view==='review')renderReview();if(view==='history')renderHistory();}
 
 // ===== INIT =====
-initDate();initQuote();updateStreak();updPom();updPomInfo();renderPillars();checkReviewDue();
+initDate();initQuote();initChallenge();updateStreak();updPom();updPomInfo();renderPillars();checkReviewDue();
 </script>
 </body>
 </html>
