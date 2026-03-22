@@ -371,6 +371,14 @@ main{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:20px 14p
 
 .sec-title{font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:2.5px;color:var(--muted);margin-bottom:14px;}
 #stats-view,#objectives-view,#history-view{display:none;}
+
+/* PLAN TOMORROW */
+.plan-tmr-btn{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 22px;color:var(--muted2);font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;}
+.plan-tmr-btn:hover{border-color:var(--p2);color:var(--p2);}
+.plan-tmr-btn.open{border-color:var(--p2);color:var(--p2);background:var(--p2g);}
+.pt-head{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--p2);border-radius:var(--radius);padding:14px 18px;margin-bottom:14px;}
+.pt-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:var(--p2);}
+.pt-sub{font-size:11px;color:var(--muted);margin-top:3px;font-family:'JetBrains Mono',monospace;}
 @keyframes fadeUp{from{opacity:0;transform:translateY(13px);}to{opacity:1;transform:translateY(0);}}
 </style>
 </head>
@@ -420,6 +428,19 @@ main{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:20px 14p
       </div>
     </div>
     <div class="pillars" id="pillarsGrid"></div>
+
+    <!-- PLANIFIER DEMAIN -->
+    <div style="text-align:center;margin-bottom:16px;">
+      <button class="plan-tmr-btn" id="planTmrBtn" onclick="togglePlanTomorrow()">📅 Planifier demain</button>
+    </div>
+    <div id="planTmrSection" style="display:none;margin-bottom:20px;">
+      <div class="pt-head">
+        <div class="pt-title">📅 Demain — <span id="ptDateLbl"></span></div>
+        <div class="pt-sub">Ces tâches s'afficheront automatiquement demain matin</div>
+      </div>
+      <div class="pillars" id="tomorrowGrid"></div>
+    </div>
+
     <div class="pom-card">
       <div class="pom-top"><div class="pom-title">⏱ Pomodoro</div><div class="pom-info" id="pomInfo">Session 1 · 0 complétées</div></div>
       <div class="pom-body">
@@ -880,7 +901,63 @@ function toggleQuest(pid,rank,idx){
   renderPillars();
 }
 
-// ===== POMODORO =====
+// ===== TOMORROW PLANNING =====
+const tomorrowKey=()=>{const d=new Date();d.setDate(d.getDate()+1);return d.toISOString().split('T')[0];}
+function getTomorrowData(){
+  const data=ls('f3d')||{};const k=tomorrowKey();
+  if(!data[k]){data[k]={};PILLARS.forEach(p=>{data[k][p.id]={main:null,secondary:[]};});ss('f3d',data);}
+  return{data,k};
+}
+function togglePlanTomorrow(){
+  const sec=document.getElementById('planTmrSection');
+  const btn=document.getElementById('planTmrBtn');
+  const isOpen=sec.style.display!=='none';
+  sec.style.display=isOpen?'none':'block';
+  btn.classList.toggle('open',!isOpen);
+  btn.textContent=isOpen?'📅 Planifier demain':'✕ Fermer la planification';
+  if(!isOpen){
+    const tmr=new Date();tmr.setDate(tmr.getDate()+1);
+    document.getElementById('ptDateLbl').textContent=`${DAYS[tmr.getDay()]} ${tmr.getDate()} ${MONTHS[tmr.getMonth()]}`;
+    renderTomorrow();
+  }
+}
+function renderTomorrow(){
+  const{data,k}=getTomorrowData();
+  const g=document.getElementById('tomorrowGrid');g.innerHTML='';
+  PILLARS.forEach(p=>{
+    const pd=data[k][p.id];
+    const c=document.createElement('div');c.className='pc';
+    c.innerHTML=buildTomorrowPC(p,pd);
+    g.appendChild(c);
+  });
+}
+function buildTomorrowPC(p,pd){
+  const tot=(pd.main?1:0)+pd.secondary.length;
+  const mainH=pd.main
+    ?`<div class="task main-t" style="cursor:default"><div class="chk" style="border-color:var(--muted)"></div><span class="task-txt">${escH(pd.main.text)}</span><span class="main-badge">★ MAIN</span><button class="task-del" onclick="delTmrTask(event,'${p.id}','main',null)">×</button></div>`
+    :`<div class="add-row"><input class="add-inp" id="tmi-${p.id}" placeholder="Tâche principale demain..." maxlength="120" onkeydown="if(event.key==='Enter')addTmrTask('${p.id}','main')"><button class="add-btn" onclick="addTmrTask('${p.id}','main')">+</button></div>`;
+  const secH=pd.secondary.map((t,i)=>`<div class="task" style="cursor:default"><div class="chk" style="border-color:var(--muted)"></div><span class="task-txt">${escH(t.text)}</span><button class="task-del" onclick="delTmrTask(event,'${p.id}','secondary',${i})">×</button></div>`).join('');
+  return `<div class="pc-accent"></div><div class="pc-glow"></div>
+    <div class="pc-head"><div class="pc-icon">${p.icon}</div><div class="pc-name">${p.name}</div><span class="pc-count">${tot} planifiées</span></div>
+    <div><div class="task-lbl">★ Tâche principale</div><div class="tasks">${mainH}</div></div>
+    ${(pd.secondary.length>0||pd.main)?`<div><div class="sec-sep">Secondaires</div><div class="tasks">${secH}</div></div>`:''}
+    ${pd.main?`<div class="add-row"><input class="add-inp" id="tsi-${p.id}" placeholder="+ Tâche secondaire demain..." maxlength="120" onkeydown="if(event.key==='Enter')addTmrTask('${p.id}','secondary')"><button class="add-btn" onclick="addTmrTask('${p.id}','secondary')">+</button></div>`:''}`;
+}
+function addTmrTask(pid,type){
+  const id=type==='main'?`tmi-${pid}`:`tsi-${pid}`;
+  const inp=document.getElementById(id);const txt=inp?.value?.trim();if(!txt)return;
+  const{data,k}=getTomorrowData();
+  if(type==='main')data[k][pid].main={text:txt,done:false};
+  else data[k][pid].secondary.push({text:txt,done:false});
+  ss('f3d',data);renderTomorrow();
+}
+function delTmrTask(e,pid,type,idx){
+  e.stopPropagation();
+  const{data,k}=getTomorrowData();
+  if(type==='main')data[k][pid].main=null;
+  else data[k][pid].secondary.splice(idx,1);
+  ss('f3d',data);renderTomorrow();
+}
 const PM={focus:25*60,short:5*60,long:15*60};const PL={focus:'Focus',short:'Pause courte',long:'Pause longue'};const PCIRC=257.6;
 let pMode='focus',pTime=25*60,pTotal=25*60,pRunning=false,pInterval=null,pSess=1;
 function setPom(mode,btn){if(pRunning)return;pMode=mode;pTime=pTotal=PM[mode];document.querySelectorAll('.pom-m').forEach(b=>b.classList.remove('on'));btn.classList.add('on');document.getElementById('pomArc').style.stroke=mode==='focus'?'var(--p1)':mode==='short'?'var(--p2)':'var(--p3)';updPom();}
