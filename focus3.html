@@ -164,6 +164,12 @@ main{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:20px 14p
 .add-inp:focus{border-color:var(--muted2);}
 .add-btn{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 11px;color:var(--muted);cursor:pointer;font-size:15px;transition:all .2s;line-height:1;}
 .add-btn:hover{color:var(--text);border-color:var(--muted2);}
+.preset-btn{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 10px;color:var(--p3);cursor:pointer;font-size:13px;transition:all .2s;line-height:1;flex-shrink:0;}
+.preset-btn:hover{border-color:var(--p3);background:var(--p3g);}
+.preset-dropdown{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-sm);z-index:100;box-shadow:0 8px 24px rgba(0,0,0,.3);overflow:hidden;}
+.preset-item{padding:9px 12px;font-size:12px;cursor:pointer;transition:background .15s;border-bottom:1px solid var(--border);}
+.preset-item:last-child{border:none;}
+.preset-item:hover{background:var(--surface2);color:var(--p2);}
 
 /* POMODORO */
 .pom-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:18px;animation:fadeUp .5s ease both .3s;}
@@ -384,6 +390,10 @@ main{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:20px 14p
 
 /* XP GRAPH */
 .xp-graph-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-top:14px;}
+.ro-motiv{color:var(--p3)!important;font-weight:700;}
+.ro-suggestions{margin-top:8px;background:rgba(255,214,10,.06);border:1px solid rgba(255,214,10,.2);border-radius:8px;padding:8px 10px;}
+.ro-suggest-item{font-size:11px;color:var(--text);padding:3px 0;border-bottom:1px solid rgba(255,214,10,.1);}
+.ro-suggest-item:last-child{border:none;}
 .xp-graph-title{font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:2px;color:var(--p3);margin-bottom:14px;}
 .xp-graph-bars{display:flex;gap:8px;}
 .xg-pillar{flex:1;display:flex;flex-direction:column;gap:6px;}
@@ -425,8 +435,6 @@ main{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:20px 14p
       <button class="nav-btn active" onclick="sv('today')">Aujourd'hui</button>
       <button class="nav-btn" onclick="sv('rank')">⚔ Rangs</button>
       <button class="nav-btn" onclick="sv('stats')">Stats</button>
-
-      <button class="nav-btn" id="reviewNavBtn" onclick="sv('review')">Bilan</button>
       <button class="nav-btn" onclick="sv('history')">Historique</button>
     </div>
     <button class="theme-btn" onclick="toggleTheme()" id="themeBtn">☀ light</button>
@@ -731,17 +739,24 @@ function getRankColor(rk){const r=RANKS.find(x=>x.key===rk);return r?r.color:'#7
 function getRankIdx(rk){return RANK_IDX[rk]??0;}
 function getXpReward(pid,type){const rd=getRankData();const rk=rd[pid].rank;const idx=getRankIdx(rk);const rewards=RANK_XP[Math.min(idx,RANK_XP.length-1)];return type==='main'?rewards[0]:rewards[1];}
 
-function awardXP(pid,type,wasDone){
-  if(wasDone)return; // un-checking, no XP
+function getXpAwarded(){return ls('f3xp_'+todayKey())||{};}
+function setXpAwarded(v){ss('f3xp_'+todayKey(),v);}
+
+function awardXP(pid,type,idx){
+  // Check if already awarded XP for this specific task today
+  const awarded=getXpAwarded();
+  const taskKey=`${pid}_${type}_${idx}`;
+  if(awarded[taskKey])return; // déjà donné, on skip
   const xp=getXpReward(pid,type);
   const rd=getRankData();
   const pillarRd=rd[pid];
-  const oldRank=pillarRd.rank;
-  if(oldRank==='N'){showXPToast(`+${xp} XP`);return;}
+  if(pillarRd.rank==='N'){showXPToast(`+${xp} XP`);return;}
   pillarRd.xp+=xp;
   setRankData(rd);
+  // Marquer comme donné
+  awarded[taskKey]=true;
+  setXpAwarded(awarded);
   showXPToast(`+${xp} XP ⚡`);
-  // Check if XP threshold reached and all quests done for current rank -> rank up available
   checkRankUpAvailable(pid);
 }
 
@@ -846,6 +861,61 @@ function buildPC(p,pd){
   return `<div class="pc-accent"></div><div class="pc-glow"></div><div class="pc-head"><div class="pc-icon">${p.icon}</div><div class="pc-name">${p.name}</div><span class="pc-count">${done}/${tot}</span></div>${rankMini}${objH}<div><div class="task-lbl">★ Tâche principale</div><div class="tasks">${mainH}</div></div>${(pd.secondary.length>0||pd.main)?`<div><div class="sec-sep">Secondaires</div><div class="tasks">${secH}</div></div>`:''}${pd.main?`<div class="add-row"><input class="add-inp" id="si-${p.id}" placeholder="+ Tâche secondaire..." maxlength="120" onkeydown="if(event.key==='Enter')addTask('${p.id}','secondary')"><button class="add-btn" onclick="addTask('${p.id}','secondary')">+</button></div>`:''}`;
 }
 
+// ===== PRESET TASKS =====
+const PRESETS={
+  devperso:[
+    "Coder sur Roblox Studio 30 min",
+    "Regarder une vidéo Lua / Python",
+    "Avancer sur le bot Discord Paradouse",
+    "Préparer le lancement Movie 3",
+    "Mémoriser un verset du Coran",
+    "Apprendre l'arabe coranique 15 min",
+    "Planifier une vidéo YouTube",
+    "Travailler sur le projet Rell Seas",
+  ],
+  physique:[
+    "Exercice technique foot 30 min",
+    "Jonglages balle de tennis",
+    "Séance pompes",
+    "Footing 20 min",
+    "Étirements et récupération",
+    "Entraînement physique 1h",
+    "Travail des gestes techniques",
+  ],
+  cours:[
+    "Faire une fiche de révision",
+    "Réviser 1h sans téléphone",
+    "Finir les devoirs du jour",
+    "Relire les cours de la semaine",
+    "Faire des exercices de maths",
+    "Préparer les cours de demain",
+    "Réviser le théorème de Thalès",
+  ],
+};
+
+function showPresets(pid,type){
+  // Ferme tout autre dropdown ouvert
+  document.querySelectorAll('.preset-dropdown').forEach(d=>d.remove());
+  const presets=PRESETS[pid]||[];
+  const dropdown=document.createElement('div');
+  dropdown.className='preset-dropdown';
+  dropdown.innerHTML=presets.map(p=>`<div class="preset-item" onclick="selectPreset('${pid}','${type}','${escH(p)}')">${p}</div>`).join('');
+  // Position après le bouton
+  const btn=document.getElementById(`preset-btn-${pid}-${type}`);
+  if(!btn)return;
+  btn.parentElement.appendChild(dropdown);
+  // Ferme au clic ailleurs
+  setTimeout(()=>document.addEventListener('click',()=>dropdown.remove(),{once:true}),50);
+}
+
+function selectPreset(pid,type,text){
+  const{d,k}=getTodayData();
+  if(type==='main')d[k][pid].main={text,done:false};
+  else d[k][pid].secondary.push({text,done:false});
+  ss('f3d',d);renderPillars();
+  document.querySelectorAll('.preset-dropdown').forEach(d=>d.remove());
+}
+
 function addTask(pid,type){const id=type==='main'?`mi-${pid}`:`si-${pid}`;const inp=document.getElementById(id);const txt=inp?.value?.trim();if(!txt)return;const{d,k}=getTodayData();if(type==='main')d[k][pid].main={text:txt,done:false};else d[k][pid].secondary.push({text:txt,done:false});ss('f3d',d);renderPillars();}
 
 function toggleTask(pid,type,idx,wasDone){
@@ -853,12 +923,55 @@ function toggleTask(pid,type,idx,wasDone){
   if(type==='main')d[k][pid].main.done=!d[k][pid].main.done;
   else d[k][pid].secondary[idx].done=!d[k][pid].secondary[idx].done;
   ss('f3d',d);
-  if(!wasDone) awardXP(pid,type,false);
+  // On donne l'XP seulement si on vient de cocher (pas décocher)
+  if(!wasDone) awardXP(pid,type,idx);
   renderPillars();updateStreak();
 }
 
 function delTask(e,pid,type,idx){e.stopPropagation();const{d,k}=getTodayData();if(type==='main')d[k][pid].main=null;else d[k][pid].secondary.splice(idx,1);ss('f3d',d);renderPillars();}
 function updateProg(){const{d,k}=getTodayData();let done=0;PILLARS.forEach(p=>{if(d[k][p.id].main?.done)done++;});document.getElementById('progTxt').textContent=`${done} / 3 tâches principales`;document.getElementById('progFill').style.width=`${(done/3)*100}%`;document.getElementById('doneBanner').classList.toggle('show',done===3);}
+
+// Suggestions par rang et pilier
+const RANK_SUGGESTIONS={
+  devperso:{
+    E:["Code 30 min sur Roblox Studio ce soir","Crée un script Lua qui fonctionne vraiment","Mémorise une sourate complète aujourd'hui"],
+    D:["Ajoute une nouvelle feature à ton mini-jeu","Code 45 min sans téléphone","Récite 3 sourates de mémoire d'affilée"],
+    C:["Améliore ton jeu Roblox publié ce soir","Écris ton premier script Python fonctionnel","Mémorise 2 nouvelles sourates"],
+    B:["Construis une feature complexe en 1h30","Publie une vidéo YouTube ce soir","Code une app Python de A à Z"],
+    A:["1h30 de travail intense sur ton projet Python","Optimise les performances de ton jeu","Prépare et enregistre une vidéo YouTube"],
+    S:["2h de travail sur ton projet IA ce soir","Lance une mise à jour majeure de ton jeu","Atteins un palier d'abonnés YouTube"],
+  },
+  physique:{
+    E:["Fais 15 pompes d'affilée maintenant","30 jonglages consécutifs ce soir","45 min d'entraînement intensif"],
+    D:["Fais 20 pompes d'affilée","Maîtrise une feinte basique ce soir","Cours 1km sans t'arrêter"],
+    C:["Fais 40 pompes d'affilée","Enchaîne 3 gestes techniques au foot","Cours 2km non-stop"],
+    B:["Fais 60 pompes d'affilée","Séance complète de 1h30 ce soir","Sprints 8x30m"],
+    A:["Fais 80 pompes d'affilée","Entraînement niveau club complet","Cours 5km sans pause"],
+    S:["Fais 120 pompes d'affilée","2h d'entraînement intensif","Cours 10km"],
+  },
+  cours:{
+    E:["Fais 2 fiches de révision ce soir","Relis tous tes cours de la semaine","Finit tous tes devoirs en avance"],
+    D:["Fais un exercice de maths complet","Révise 1h sans téléphone","Prépare tes cours de demain ce soir"],
+    C:["Révise 1h30 en mode exam","Fais un devoir blanc sur un chapitre","Explique un cours à voix haute"],
+    B:["Révise 2h et teste-toi sur tout","Fais tous les exercices du chapitre","Prépare une fiche parfaite sur l'électricité"],
+    A:["Révise 2h30 en conditions d'exam","Fais un devoir blanc complet noté","Maîtrise un chapitre entier de A à Z"],
+    S:["Révise 3h et vise 95% de réussite","Prépare-toi comme si l'exam était demain","Aide un camarade et explique-lui tout"],
+  },
+};
+
+function getMotivationMsg(pid,rk,xp){
+  if(rk==='N'||xp<80)return null;
+  const remaining=100-xp;
+  const suggestions=RANK_SUGGESTIONS[pid][rk]||[];
+  const nextRankObj=RANKS[getRankIdx(rk)+1];
+  const msgs=[
+    `Plus que ${remaining} XP avant le ${nextRankObj?.label||'rang suivant'} ! 🔥`,
+    `T'y es presque ! ${remaining} XP restants.`,
+    `Le ${nextRankObj?.label||'rang suivant'} est à portée de main ! ${remaining} XP encore.`,
+  ];
+  const msg=msgs[Math.floor(xp/10)%msgs.length];
+  return{msg,suggestions};
+}
 
 // ===== RANK VIEW =====
 function renderRankView(){
@@ -898,7 +1011,16 @@ function renderRankView(){
           <div class="ro-xp-val" style="color:${borderColor}">${rk==='N'?'MAX':rp.xp+' / '+needed+' XP'}</div>
         </div>
         <div class="ro-xp-track"><div class="ro-xp-fill" style="width:${xpPct}%;background:${borderColor}"></div></div>
-        <div class="ro-xp-note">${rk==='N'?'Rang maximum atteint 👑':xpPct>=100?'100 XP atteints ! Complète les quêtes pour monter ↓':'Gagne de l\'XP en cochant tes tâches quotidiennes'}</div>
+        ${(()=>{
+          if(rk==='N') return '<div class="ro-xp-note">Rang maximum atteint 👑</div>';
+          if(xpPct>=100) return '<div class="ro-xp-note" style="color:var(--p3)">✅ 100 XP atteints ! Complète les quêtes pour monter ↓</div>';
+          const motiv=getMotivationMsg(pl.id,rk,rp.xp);
+          if(motiv){
+            const suggHTML=motiv.suggestions.map(s=>`<div class="ro-suggest-item">→ ${s}</div>`).join('');
+            return `<div class="ro-xp-note ro-motiv">${motiv.msg}</div><div class="ro-suggestions">${suggHTML}</div>`;
+          }
+          return `<div class="ro-xp-note">Gagne de l'XP en cochant tes tâches quotidiennes</div>`;
+        })()}
       </div>
       ${quests.length>0?`<div class="ro-quests"><div class="ro-quests-title">📋 Quêtes ${RANKS[rIdx].label} <span style="color:${borderColor};font-family:'JetBrains Mono'">${doneQuests.filter(Boolean).length}/${quests.length}</span></div>${questsHTML}</div>`:'<div class="ro-quests"><div class="ro-quests-title">👑 Rang Maximum</div><div style="font-size:12px;color:var(--muted)">Tu as atteint le niveau National. Légende.</div></div>'}`;
     g.appendChild(card);
@@ -1163,11 +1285,11 @@ function renderHistory(){
 }
 
 // ===== VIEW SWITCH =====
-const VIEWS=['today','rank','stats','review','history'];
-function sv(view){VIEWS.forEach(v=>{const el=document.getElementById(v+'-view');if(el)el.style.display='none';});const el=document.getElementById(view+'-view');if(el)el.style.display='block';document.querySelectorAll('.nav-btn').forEach((b,i)=>b.classList.toggle('active',VIEWS[i]===view));if(view==='rank')renderRankView();if(view==='stats')renderStats();if(view==='review')renderReview();if(view==='history')renderHistory();}
+const VIEWS=['today','rank','stats','history'];
+function sv(view){VIEWS.forEach(v=>{const el=document.getElementById(v+'-view');if(el)el.style.display='none';});const el=document.getElementById(view+'-view');if(el)el.style.display='block';document.querySelectorAll('.nav-btn').forEach((b,i)=>b.classList.toggle('active',VIEWS[i]===view));if(view==='rank')renderRankView();if(view==='stats')renderStats();if(view==='history')renderHistory();}
 
 // ===== INIT =====
-initDate();initQuote();initChallenge();updateStreak();updPom();updPomInfo();renderPillars();checkReviewDue();
+initDate();initQuote();initChallenge();updateStreak();updPom();updPomInfo();renderPillars();
 </script>
 </body>
 </html>
