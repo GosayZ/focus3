@@ -1735,6 +1735,33 @@ function sv(view){
 }
 
 // ══════════════════════════════════════════════
+// EXPOSE TO WINDOW (fix onclick in iframe/artifact)
+// ══════════════════════════════════════════════
+window.sv=sv;
+window.closeModal=closeModal;
+window.openModal=openModal;
+window.toggleTheme=toggleTheme;
+window.toggleChallenge=toggleChallenge;
+window.togglePlanTomorrow=togglePlanTomorrow;
+window.togglePom=togglePom;
+window.resetPom=resetPom;
+window.setPom=setPom;
+window.saveReview=saveReview;
+window.setSc=setSc;
+window.toggleQuest=toggleQuest;
+window.openLibrary=openLibrary;
+window.addCustomFromLib=addCustomFromLib;
+window.toggleFm=toggleFm;
+window.exitFocusMode=exitFocusMode;
+window.markFocusTaskDone=markFocusTaskDone;
+window.addTask=addTask;
+window.delTask=delTask;
+window.toggleTask=toggleTask;
+window.addTmr=addTmr;
+window.delTmr=delTmr;
+window.enterFocusMode=enterFocusMode;
+
+// ══════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════
 initDate();initQuote();initMood();initChallenge();
